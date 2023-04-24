@@ -1,0 +1,120 @@
+%RNN Controller For Linear system
+
+clc;
+clear;
+close all;
+alpha=0.01;
+itNN=180;
+n=itNN-1;
+Neuron=4;    %Number of neurons in hidden layers
+NumInt=7;     %Number of inputs
+Theta1=zeros(1,itNN);
+
+% input
+
+ref2=randi([40 40],1,60);
+ref22=randi([60 60],1,60);
+ref33=randi([80 80],1,60);
+ref3=[ref2 ref22 ref33];
+
+%reference Model
+reference=ref3;
+
+%% Initialize DRNN Controller
+
+        
+% Weights
+W_w.w1=[];        % Weight From inputs to  Hidden layer1
+W_w.w2=[];        % Weight From Hidden layer1 to Hidden layer2
+W_w.w3=[];        % Weight From Hidden layer2 to Hidden layer3
+W_w.w4=[];        % Weight From Hidden layer3 to output node
+
+
+Ww=repmat(W_w,itNN ,1);
+
+for k=1:itNN
+    Ww(k).w1=unifrnd(0,1,NumInt,Neuron);
+    Ww(k).w2=unifrnd(0,1,Neuron,Neuron);
+    Ww(k).w3=unifrnd(0,1,Neuron,Neuron);
+    Ww(k).w4=unifrnd(0,1,1,Neuron);
+    Ww(k).z=zeros(1,Neuron);
+
+end
+
+E=zeros(1,itNN);                              %Error between Theta and reference
+E1=zeros(1,itNN);                             % observing and reduce Error
+E2=zeros(1,itNN);
+u=zeros(1,itNN);                                %NN OutPut
+Input_of_Hidden_layer1=zeros(1,itNN);
+Delta=zeros(1,itNN);
+
+
+for it=1:2000
+for i=3:n
+
+  Input_of_Hidden_layer1 =Ww(i).w1'*[E1(i) E1(i-1) E1(i-2) Theta1(i) Theta1(i-1) u(i-1) u(i)]'+1;
+
+
+  output_ofHidden_layer1 =  1./(1+exp(-Input_of_Hidden_layer1));
+     
+  Input_of_Hidden_layer2 = (Ww(i).w2*output_ofHidden_layer1)+1;
+     
+  output_ofHidden_layer2 =  1./(1+exp(-Input_of_Hidden_layer2));
+     
+  Input_of_Hidden_layer3 = (Ww(i).w3*output_ofHidden_layer2)+1;
+     
+  output_ofHidden_layer3 =  1./(1+exp(-Input_of_Hidden_layer3));
+     
+  Input_of_output_Node =   (Ww(i).w4*output_ofHidden_layer3)+1;
+     
+  u(i) =(Input_of_output_Node); % out put of output layer(linear)
+     
+     %Linear system
+  Theta1(i+1)=0.998*Theta1(i)+0.232*u(i);
+
+     %BackPropagation
+     E1(i)=(ref3(i+1)-Theta1(i+1));
+     E2(i)=(reference(i+1)-Theta1(i+1));
+     E(i)=(E2(i)-u(i));
+
+    error_of_hidden_layer3=Ww(i).w4'*E2(i);
+   
+    Delta3=(Input_of_Hidden_layer3>0).*error_of_hidden_layer3;
+    
+    error_of_hidden_layer2=Ww(i).w3'*Delta3;
+    Delta2=(Input_of_Hidden_layer2>0).*error_of_hidden_layer2;
+    
+    error_of_hidden_layer1=Ww(i).w2'*Delta2;
+    Delta1=(Input_of_Hidden_layer1>0).*error_of_hidden_layer1;
+    
+    adjustment_of_W4= alpha*E2(i) * output_ofHidden_layer3';
+    adjustment_of_W3= alpha*Delta3 * output_ofHidden_layer2';
+    adjustment_of_W2= alpha*Delta2* output_ofHidden_layer1';
+    adjustment_of_W1= alpha*Delta1*[E1(i) E1(i-1) E1(i-2) Theta1(i) Theta1(i-1) u(i+1) u(i)];
+    
+      %Transpose adjusted Weights
+      adjustment_of_W1=adjustment_of_W1';
+%     adjustment_of_W2=adjustment_of_W2';
+%     adjustment_of_W3=adjustment_of_W3';
+    
+    Ww(i).w1=Ww(i).w1+adjustment_of_W1;
+    Ww(i).w2=Ww(i).w2+adjustment_of_W2;
+    Ww(i).w3=Ww(i).w3+adjustment_of_W3;
+    Ww(i).w4=Ww(i).w4+adjustment_of_W4;
+    
+end
+end
+
+
+%% Results
+
+ % RNN Elman Types OutPuts 
+ figure;
+  plot(reference,'LineWidth',2)   
+  hold on;
+  plot(Theta1,'r','LineWidth',1.2)
+  
+  legend('reference','system output')
+  title('PID NN Controler')
+  hold off
+  
