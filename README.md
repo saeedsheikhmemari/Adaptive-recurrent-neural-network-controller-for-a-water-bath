@@ -1,2 +1,2 @@
 # AL
-Pure Adaptive Recurrent neural network Controller For a sytem conrol
+Pure Adaptive Recurrent neural network Controller For a linear system
